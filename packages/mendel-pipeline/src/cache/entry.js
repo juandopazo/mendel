@@ -9,26 +9,29 @@ class Entry {
         this.effectiveExt = path.extname(id);
         this.sourceVersions = new Map();
         this.dependents = [];
-        this.dependencies = new Map();
     }
 
     incrementStep() {
         this.step++;
     }
 
-    setSource(transformIds, source) {
-        this.sourceVersions.set(transformIds.join('_'), source);
+    setSource(transformIds, source, deps) {
+        this.sourceVersions.set(transformIds.join('_'), {source, deps});
     }
 
     setEffectiveExt(effectiveExt) {
         this.effectiveExt = effectiveExt;
     }
 
+    hasSource(transformIds) {
+        return this.sourceVersions.has(transformIds.join('_'));
+    }
+
     getSource(transformIds) {
         if (!Array.isArray(transformIds)) {
             throw new Error(`Expected "${transformIds}" to be an array.`);
         }
-        return this.sourceVersions.get(transformIds.join('_') || 'raw');
+        return this.sourceVersions.get(transformIds.join('_') || 'raw').source;
     }
 
     getClosestSource(transformIds) {
@@ -37,12 +40,15 @@ class Entry {
             if (this.sourceVersions.has(key)) {
                 return {
                     transformIds: key.split('_'),
-                    source: this.sourceVersions.get(key),
+                    source: this.sourceVersions.get(key).source,
                 };
             }
         }
 
-        return {transformIds: null, source: this.sourceVersions.get('raw')};
+        return {
+            transformIds: null,
+            source: this.sourceVersions.get('raw').source,
+        };
     }
 
     addDependent(dependent) {
@@ -51,16 +57,12 @@ class Entry {
         this.dependents.push(dependent);
     }
 
-    setDependencies(deps) {
-        if (deps instanceof Map) this.dependencies = deps;
-        Object.keys(deps).forEach(dependencyLiteral => {
-            this.dependencies.set(dependencyLiteral, deps[dependencyLiteral]);
-        });
+    getDependency(transformIds) {
+        return this.sourceVersions.get(transformIds.join('_')).deps;
     }
 
     reset() {
         this.sourceVersions.clear();
-        this.dependencies.clear();
         this.dependents = [];
     }
 
@@ -72,7 +74,6 @@ class Entry {
             variation: this.variation,
             type: this.type,
             dependents: this.dependents,
-            dependencies: this.dependencies,
         };
     }
 }
