@@ -1,28 +1,22 @@
 const path = require('path');
 const Entry = require('./entry.js');
+const variationMatches = require('mendel-development/variation-matches');
 
 class MendelCache {
     constructor(config) {
         this._store = new Map();
         this._baseConfig = config.baseConfig;
-        this._variationConfig = config.variationConfig;
-
-        const variationDirSet = new Set();
-        Object.keys(this._variationConfig.variations)
-            .filter(varKey => this._variationConfig.variations[varKey])
-            .forEach(varKey => {
-                this._variationConfig.variations[varKey].forEach(varFolderName => variationDirSet.add(varFolderName));
-            });
-        const varDirNames = Array.from(variationDirSet.keys());
-
-        this.variationalRegex = new RegExp(`(${varDirNames.map(dirName => `(${dirName})${path.sep}\\w+`).join('|')}|${this._baseConfig.dir})${path.sep}?`);
+        this._variations = config.variationConfig.variations;
     }
 
     getNormalizedId(id) {
         if (isNodeModule(id)) return id;
 
-        // This is wrong WIP
-        // return id.replace(this.variationalRegex, '');
+        const match = variationMatches(this._variations, id);
+        if (match) {
+            return match.file.replace(/(package\.json|\/index\.jsx?)$/, '');
+        }
+
         return id;
     }
 
@@ -35,17 +29,15 @@ class MendelCache {
     }
 
     getVariation(path) {
-        const variationalMatch = path.match(this.variationalRegex);
-
-        if (!variationalMatch) return this._baseConfig.id;
-        return 'still working on it';
+        const match = variationMatches(this._variations, path);
+        if (match) return match.variation;
     }
 
     addEntry(id) {
         this._store.set(id, new Entry(id));
         const entry = this._store.get(id);
         entry.variation = this.getVariation(id);
-        entry.normalizedId = this.getNormalizedId(id);
+        entry.key = this.getNormalizedId(id);
         entry.type = this.getType(id);
     }
 

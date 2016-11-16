@@ -1,6 +1,4 @@
 var path = require('path');
-var configParserLegacy = require('./legacy');
-var configParser = require('./src');
 var yaml = require('js-yaml');
 var fs = require('fs');
 var xtend = require('xtend');
@@ -17,7 +15,7 @@ function findConfig(where) {
         var rc = path.join(loc, mendelrc);
         if (fs.existsSync(rc)) {
             config = loadFromYaml(rc);
-            config.basedir = path.dirname(rc);
+            config.projectRoot = path.dirname(rc);
             return config;
         }
 
@@ -26,7 +24,7 @@ function findConfig(where) {
             var pkg = require(path.resolve(packagejson));
             if (pkg.mendel) {
                 config = pkg.mendel;
-                config.basedir = path.dirname(packagejson);
+                config.projectRoot = path.dirname(packagejson);
                 return config;
             }
         }
@@ -34,10 +32,7 @@ function findConfig(where) {
         parts.pop();
     } while (parts.length);
 
-    return {
-        basedir: where,
-        cwd: where,
-    };
+    return {};
 }
 
 function loadFromYaml(path) {
@@ -49,16 +44,25 @@ module.exports = function(config) {
     if (typeof config !== 'object') config = {};
 
     var cwd = config.cwd || config.basedir || process.cwd();
+
     // support --no-config or {config: false} to skip looking for file configs
-    var fileConfig = config.config !== false ? findConfig(cwd) : config;
+    if (config.config !== false) {
+        var fileConfig = findConfig(cwd);
+        // in case we found a file config, assign by priority
+        if (fileConfig.projectRoot) {
+            config = xtend(fileConfig, config);
+            // but force projectRoot to always be consistent
+            config.projectRoot = fileConfig.projectRoot;
+        }
+    }
 
-    config = xtend(fileConfig, config);
-    // Why is this required?
-    if (fileConfig.cwd) config.cwd = fileConfig.cwd;
 
+    // require only inside conditional
+    // This way Mendel v2 can use ES6 and v1 is still compatible with node 0.10
     if (config['base-config']) {
-        return configParser(config);
+        return require('./src')(config);
     } else {
-        return configParserLegacy(config);
+        config.basedir = config.projectRoot;
+        return require('./legacy')(config);
     }
 };

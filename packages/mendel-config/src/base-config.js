@@ -3,8 +3,11 @@ var createValidator = require('./validator');
 
 function BaseConfig(config) {
     var baseConfig = config['base-config'];
+    delete config['base-config'];
+
     this.id = baseConfig.id;
-    this.dir = path.resolve(config.cwd, baseConfig.dir || '');
+    this.dir = path.relative(config.projectRoot, baseConfig.dir || '');
+    this.absDir = path.resolve(config.projectRoot, this.dir);
 
     BaseConfig.validate(this);
 }

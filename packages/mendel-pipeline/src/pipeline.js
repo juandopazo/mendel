@@ -40,7 +40,8 @@ function MendelPipeline(options) {
             if (!nextStep) return;
 
             analyzeSteps.tic(`${nextStep.constructor.name}:${entryId}`);
-            nextStep.perform.apply(nextStep, [entry].concat(Array.prototype.slice.call(arguments, 1)));
+            nextStep.perform.apply(nextStep, [entry].concat(
+                Array.prototype.slice.call(arguments, 1)));
         });
     });
 

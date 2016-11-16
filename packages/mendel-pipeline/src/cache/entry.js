@@ -3,7 +3,7 @@ const path = require('path');
 class Entry {
     constructor(id) {
         this.id = id;
-        this.normalizedId;
+        this.key;
         this.type;
         this.step = 0;
         this.effectiveExt = path.extname(id);
@@ -68,7 +68,7 @@ class Entry {
     debug() {
         return {
             id: this.id,
-            normalizedId: this.normalizedId,
+            key: this.key,
             variation: this.variation,
             type: this.type,
             dependents: this.dependents,

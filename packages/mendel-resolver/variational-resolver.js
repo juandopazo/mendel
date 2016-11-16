@@ -1,38 +1,28 @@
 const ModuleResolver = require('./index');
 const path = require('path');
+const variationMatches = require('mendel-development/variation-matches');
 
 class VariationalModuleResolver extends ModuleResolver {
     constructor(config) {
         super(config);
 
         // Must be a path relative to the basedir
-        this.cwd = config.cwd;
-        this.baseVarDir = path.resolve(this.cwd, config.baseVariationDir);
-        this.varDirs = config.variationDirs.map(varDir => path.resolve(this.cwd, varDir));
-        this.variationChain = config.variations.reduce((reduced, variation) => {
-            return reduced.concat(this.varDirs.map(varDir => path.resolve(varDir, variation)));
-        }, []).concat([this.baseVarDir]);
-    }
-
-    // Module id is a path without the variational information
-    getModuleId(variationalPath) {
-        const varNameStrippedPath = path.resolve(this.basedir, variationalPath)
-            .replace(new RegExp(`((${this.varDirs.join('|')})${path.sep}\\w+|${this.baseVarDir})${path.sep}?`), '');
-        return varNameStrippedPath || '.';
-    }
-
-    isBasePath(modulePath) {
-        return path.resolve(modulePath).indexOf(this.baseVarDir) >= 0;
+        this.projectRoot = config.projectRoot;
+        this.baseDir = config.baseDir;
+        this.baseVarDir = config.baseVarDir;
+        this.key = config.key;
+        this.variation = config.variation;
+        this.variations = config.variations;
+        this.variationConfig = config.variationConfig;
     }
 
     resolveFile(modulePath) {
-        if (this.isBasePath(modulePath)) return super.resolveFile(modulePath);
+        if (!this.variation) return super.resolveFile(modulePath);
 
         let promise = Promise.reject();
-        const moduleId = this.getModuleId(modulePath);
-
-        this.variationChain.forEach(variation => {
-            promise = promise.catch(() => super.resolveFile(path.resolve(variation, moduleId)));
+        this.variations.forEach(variation => {
+            const file = path.resolve(this.projectRoot, variation, this.key);
+            promise = promise.catch(() => super.resolveFile(file));
         });
         return promise;
     }
@@ -63,18 +53,29 @@ class VariationalModuleResolver extends ModuleResolver {
     }
 
     resolveDir(moduleName) {
-        if (this.isBasePath(moduleName) || moduleName.indexOf('node_modules') >= 0) return super.resolveDir(moduleName);
+        const configVariations = this.variationConfig.variations;
+        const match = variationMatches(configVariations, moduleName);
 
-        const moduleId = this.getModuleId(moduleName);
+        if (!match) return super.resolveDir(moduleName);
+
         let promise = Promise.reject();
-        this.variationChain.forEach(variation => {
-            const packagePath = path.join(variation, moduleId, '/package.json');
+        this.variations.forEach(variation => {
+            const packagePath = path.join(
+                variation,
+                match.file,
+                '/package.json'
+            );
             promise = promise.catch(() => {
-                return this.readPackageJson(packagePath).then(varPackageJson => this._processPackageJson(moduleName, varPackageJson));
+                return this.readPackageJson(packagePath)
+                .then(varPackageJson => {
+                    return this._processPackageJson(moduleName, varPackageJson);
+                });
             });
         });
 
-        return promise.catch(() => this.resolveFile(path.join(moduleName, 'index')));
+        return promise.catch(() => {
+            return this.resolveFile(path.join(moduleName, 'index'));
+        });
     }
 }
 

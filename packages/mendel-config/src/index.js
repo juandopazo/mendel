@@ -16,6 +16,7 @@ module.exports = function(config) {
     var defaults = defaultConfig();
 
     // merge by priority
+    config = onlyKeys(config, Object.keys(defaults));
     config = deepMerge(defaults, config);
 
     // merge environment based config
@@ -30,7 +31,7 @@ module.exports = function(config) {
     }
 
     // Use absolute path for path configs
-    config.cwd = path.resolve(config.cwd);
+    config.projectRoot = path.resolve(config.projectRoot);
     config.baseConfig = new BaseConfig(config);
     config.variationConfig = new VariationConfig(config);
     config.types = Object.keys(config.types).map(function(typeName) {
@@ -51,6 +52,14 @@ module.exports = function(config) {
 
     return config;
 };
+
+
+function onlyKeys(oldObj, whitelist) {
+    return whitelist.reduce((newObj, key) => {
+        newObj[key] = oldObj[key];
+        return newObj;
+    }, {});
+}
 
 function deepMerge(dest, src) {
     for (var key in src) {

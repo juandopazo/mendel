@@ -8,16 +8,16 @@ class ModuleResolver {
      * @param {String[]} options.envNames
      */
     constructor({
-        cwd=process.cwd(),
+        projectRoot=process.cwd(),
         basedir=process.cwd(),
         extensions=['.js'],
         envNames=['main'],
         recordPackageJson=false,
     } = {}) {
         this.extensions = extensions;
-        this.cwd = cwd;
-        // in case basedir is relative, we want to make it relative to the cwd.
-        this.basedir = path.resolve(this.cwd, basedir);
+        this.projectRoot = projectRoot;
+        // in case basedir is relative, we want to make it relative to the projectRoot.
+        this.basedir = path.resolve(this.projectRoot, basedir);
         this.envNames = envNames;
         this.recordPackageJson = recordPackageJson;
     }
@@ -61,7 +61,7 @@ class ModuleResolver {
         // Post process
         .then((deps) => {
             // Make the path relative to the `basedir`.
-            Object.keys(deps).forEach((depsKey) => deps[depsKey] = path.relative(this.cwd, deps[depsKey]));
+            Object.keys(deps).forEach((depsKey) => deps[depsKey] = path.relative(this.projectRoot, deps[depsKey]));
             return deps;
         })
         // Fallback solution: Couldn't find anything - Return the name of the module back.
